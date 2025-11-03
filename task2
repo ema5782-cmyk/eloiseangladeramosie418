@@ -1,0 +1,68 @@
+import sys
+from pathlib import Path
+from PySide6.QtWidgets import QApplication, QLineEdit, QSpinBox, QPushButton, QLabel
+from PySide6.QtUiTools import QUiLoader
+from PySide6.QtCore import QFile, QIODevice
+
+try:
+    import pandas as pd
+    USE_PANDAS = True
+    df = pd.DataFrame(columns=["name", "age"])
+except Exception:
+    USE_PANDAS = False
+    df = []
+
+def print_latest():
+    print("Saved row. Latest rows:")
+    if USE_PANDAS:
+        print(df.tail(5))
+    else:
+        for row in df[-5:]:
+            print(row)
+
+app = QApplication(sys.argv)
+loader = QUiLoader()
+
+ui_path = Path(__file__).resolve().parent / "student_form.ui"
+ui_file = QFile(str(ui_path))
+ui_file.open(QIODevice.ReadOnly)
+window = loader.load(ui_file)
+ui_file.close()
+
+name_input: QLineEdit = window.findChild(QLineEdit, "nameLineEdit")
+age_input: QSpinBox = window.findChild(QSpinBox, "ageSpinBox")
+submit_btn: QPushButton = window.findChild(QPushButton, "submitButton")
+clear_btn: QPushButton = window.findChild(QPushButton, "clearButton")
+feedback: QLabel | None = window.findChild(QLabel, "statusLabel")
+
+def set_feedback(msg: str):
+    if feedback is not None:
+        feedback.setText(msg)
+
+def submit_form():
+    name = name_input.text().strip()
+    age_val = int(age_input.value())
+
+    if not name:
+        print("Please enter a name"); set_feedback("Please enter a name"); return
+    if age_val == 0:
+        print("Please enter an age"); set_feedback("Please enter an age"); return
+
+    print(f"Submitted -> Name: {name}, Age: {age_val}")
+    if USE_PANDAS:
+        df.loc[len(df)] = {"name": name, "age": age_val}
+    else:
+        df.append({"name": name, "age": age_val})
+    print_latest()
+    set_feedback(f"Saved: {name} ({age_val})")
+
+def clear_form():
+    name_input.clear()
+    age_input.setValue(0)
+    set_feedback("")
+
+submit_btn.clicked.connect(submit_form)
+clear_btn.clicked.connect(clear_form)
+
+window.show()
+sys.exit(app.exec())
